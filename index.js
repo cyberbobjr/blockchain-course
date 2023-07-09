@@ -12,18 +12,41 @@ const AND = 'AND';
 const JMP = 'JMP';
 const JMPI = 'JMPI';
 
+const EXECUTION_COMPLETE = "Smart Contract finished";
+const EXECUTION_LIMIT = 10000;
+
+const OPCODE_MAP = {
+    STOP,
+    ADD,
+    SUB,
+    MUL,
+    DIV,
+    PUSH,
+    LT,
+    GT,
+    EQ,
+    OR,
+    AND,
+    JMP,
+    JMPI
+};
+
 class Interpreter {
 
     constructor() {
         this.state = {
             programCounter: 0,
             stack: [],
-            code: []
+            code: [],
+            executionCount: 0
         };
     }
 
     jump() {
         const destination = this.state.stack.pop();
+        if (destination < 0 || destination > this.state.code.length) {
+            throw new Error(`Invalid destination : ${destination}`);
+        }
         this.state.programCounter = destination;
         this.state.programCounter--;
     }
@@ -32,14 +55,22 @@ class Interpreter {
         this.state.code = [...code];
         try {
             while (this.state.programCounter < this.state.code.length) {
+                this.state.executionCount++;
+
+                if (this.state.executionCount > EXECUTION_LIMIT) {
+                    throw new Error(`Check for an infinite loop. Execution limit of ${EXECUTION_LIMIT} exceed`);
+                }
                 let opCode = this.state.code[this.state.programCounter];
                 switch (opCode) {
                     case PUSH:
                         this.state.programCounter++;
+                        if (this.state.programCounter === this.state.code.length) {
+                            throw new Error(`The PUSH instruction cannot be the last`);
+                        }
                         this.state.stack.push(this.state.code[this.state.programCounter]);
                         break;
                     case STOP:
-                        throw new Error("Smart Contract finished");
+                        throw new Error(EXECUTION_COMPLETE);
                     case JMP:
                         this.jump();
                         break;
@@ -78,35 +109,14 @@ class Interpreter {
                 this.state.programCounter++;
             }
         } catch (e) {
-            return this.state.stack.pop();
+            if (e.message === EXECUTION_COMPLETE) {
+                return this.state.stack[this.state.stack.length - 1];
+            }
+            throw e;
         }
 
     }
 }
 
-let code = [PUSH, 2, PUSH, 10, ADD, STOP];
-console.log("Result of ADD between 10 and 2 : ", (new Interpreter()).runCode(code));
-
-code = [PUSH, 2, PUSH, 10, DIV, STOP];
-console.log("Result of DIV between 10 and 2 : ", (new Interpreter()).runCode(code));
-
-code = [PUSH, 2, PUSH, 10, SUB, STOP];
-console.log("Result of SUB between 10 and 2 : ", (new Interpreter()).runCode(code));
-
-code = [PUSH, 2, PUSH, 10, MUL, STOP];
-console.log("Result of MUL between 10 and 2 : ", (new Interpreter()).runCode(code));
-
-code = [PUSH, 2, PUSH, 10, GT, STOP];
-console.log("Result of GT between 10 and 2 : ", (new Interpreter()).runCode(code));
-
-code = [PUSH, 2, PUSH, 10, LT, STOP];
-console.log("Result of LT between 10 and 2 : ", (new Interpreter()).runCode(code));
-
-code = [PUSH, 2, PUSH, 2, EQ, STOP];
-console.log("Result of EQ between 2 and 2 : ", (new Interpreter()).runCode(code));
-
-code = [PUSH, 6, JMP, PUSH, 0, JMP, PUSH, "jump successful", STOP]
-console.log("Result JMP : ", (new Interpreter()).runCode(code));
-
-code = [PUSH, 8, PUSH, 1, JMPI, PUSH, 0, JMP, PUSH, "jumpi successful", STOP]
-console.log("Result JMPI : ", (new Interpreter()).runCode(code));
+Interpreter.OPCODE_MAP = OPCODE_MAP;
+module.exports = Interpreter
