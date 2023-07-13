@@ -50,10 +50,3 @@ class Block {
 }
 
 module.exports = Block;
-
-const block = Block.mineBlock({
-    lastBlock: Block.genesis(),
-    beneficiary: 'foo'
-})
-
-console.log('block', block);
